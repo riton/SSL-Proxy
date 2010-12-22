@@ -3,13 +3,18 @@
 #include <string.h>
 #include <errno.h>
 
+/**
+ * @desc No argument constructor
+ * Useless...
+ */
 OSelect::OSelect() {
 	FD_ZERO(&set);
 }
 
 /**
- * This constructor set up max fd
- * and feed internal list
+ * @desc OSelect constructor
+ * This constructor also setup max_fd.
+ * @param int fds[] File descriptor that you want to watch for activity
  */
 OSelect::OSelect(const int fds[]) {
 
@@ -27,20 +32,40 @@ OSelect::OSelect(const int fds[]) {
 	this->max_fd = max_fd;
 }
 
+/**
+ * @desc Add a file descriptor to monitor
+ * @param const int &fd File descriptor
+ * @return void
+ */
 void OSelect::add(const int &fd) {
 	if (fd > max_fd)
 		max_fd = fd;
 	return fds.push_front(fd);
 }
 
+/**
+ * @desc Remove a file from set
+ * @param const int &fd File descriptor to remove
+ * @return void
+ */
 void OSelect::remove(const int &fd) {
 	return fds.remove(fd);
 }
 
+/**
+ * @desc How many file descriptors are we keeping on track ?
+ * @return size_t Number of file descriptors in current set
+ */
 size_t OSelect::count(void) {
 	return fds.size();
 }
 
+/**
+ * @desc Check to see if one of our file descriptor
+ * is available for reading, in time period
+ * @param const struct timeval *time Timeout
+ * @return list<int> File descriptors available for reading
+ */
 list<int> OSelect::can_read(const struct timeval *time) {
 
 	list<int>::iterator	it;
@@ -72,6 +97,9 @@ again:
 	return readable;
 }
 
+/**
+ * @param const int seconds Timeout in seconds
+ */
 list<int> OSelect::can_read(const int seconds) {
 	struct timeval timeout = {seconds, 0};
 	return can_read(&timeout);
@@ -110,5 +138,5 @@ again:
 
 list<int> OSelect::can_write(const int seconds) {
 	struct timeval timeout = {seconds, 0};
-	return can_read(&timeout);
+	return can_write(&timeout);
 }
