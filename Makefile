@@ -7,7 +7,7 @@ CC=g++
 
 all: proxys
 
-OBJ=OSelect.o
+OBJ=IOSelect.o
 
 proxys: proxys.o $(OBJ)
 	$(CC) $(LDFLAGS) $^ -o $@
