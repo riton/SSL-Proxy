@@ -9,7 +9,7 @@ using namespace std;
 
 #define OSELECT_MAX_FDS	10
 
-class OSelect {
+class IOSelect {
 
 	private:
 		fd_set				set;
@@ -17,8 +17,8 @@ class OSelect {
 		int					max_fd;
 	
 	public:
-		OSelect(const int fds[]);
-		OSelect();
+		IOSelect(const int fds[]);
+		IOSelect();
 
 		list<int> can_read(const struct timeval *timeout);
 		list<int> can_read(const int seconds);

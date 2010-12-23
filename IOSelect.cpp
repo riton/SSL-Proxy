@@ -1,4 +1,4 @@
-#include "OSelect.h"
+#include "IOSelect.h"
 #include <iostream>
 #include <string.h>
 #include <errno.h>
@@ -7,21 +7,21 @@
  * @desc No argument constructor
  * Useless...
  */
-OSelect::OSelect() {
+IOSelect::IOSelect() {
 	FD_ZERO(&set);
 }
 
 /**
- * @desc OSelect constructor
+ * @desc IOSelect constructor
  * This constructor also setup max_fd.
  * @param int fds[] File descriptor that you want to watch for activity
  */
-OSelect::OSelect(const int fds[]) {
+IOSelect::IOSelect(const int fds[]) {
 
 	int				pi = NULL;
 	int				max_fd = -1;
 
-	OSelect();
+	IOSelect();
 	for (pi = 0; fds[pi] >= 0; pi++) {
 		if (fds[pi] > max_fd)
 			max_fd = fds[pi];
@@ -37,7 +37,7 @@ OSelect::OSelect(const int fds[]) {
  * @param const int &fd File descriptor
  * @return void
  */
-void OSelect::add(const int &fd) {
+void IOSelect::add(const int &fd) {
 	if (fd > max_fd)
 		max_fd = fd;
 	return fds.push_front(fd);
@@ -48,7 +48,7 @@ void OSelect::add(const int &fd) {
  * @param const int &fd File descriptor to remove
  * @return void
  */
-void OSelect::remove(const int &fd) {
+void IOSelect::remove(const int &fd) {
 	return fds.remove(fd);
 }
 
@@ -56,7 +56,7 @@ void OSelect::remove(const int &fd) {
  * @desc How many file descriptors are we keeping on track ?
  * @return size_t Number of file descriptors in current set
  */
-size_t OSelect::count(void) {
+size_t IOSelect::count(void) {
 	return fds.size();
 }
 
@@ -66,7 +66,7 @@ size_t OSelect::count(void) {
  * @param const struct timeval *time Timeout
  * @return list<int> File descriptors available for reading
  */
-list<int> OSelect::can_read(const struct timeval *time) {
+list<int> IOSelect::can_read(const struct timeval *time) {
 
 	list<int>::iterator	it;
 	list<int>			readable;
@@ -100,12 +100,12 @@ again:
 /**
  * @param const int seconds Timeout in seconds
  */
-list<int> OSelect::can_read(const int seconds) {
+list<int> IOSelect::can_read(const int seconds) {
 	struct timeval timeout = {seconds, 0};
 	return can_read(&timeout);
 }
 
-list<int> OSelect::can_write(const struct timeval *time) {
+list<int> IOSelect::can_write(const struct timeval *time) {
 
 	list<int>::iterator	it;
 	list<int>			writable;
@@ -136,7 +136,7 @@ again:
 	return writable;
 }
 
-list<int> OSelect::can_write(const int seconds) {
+list<int> IOSelect::can_write(const int seconds) {
 	struct timeval timeout = {seconds, 0};
 	return can_write(&timeout);
 }
