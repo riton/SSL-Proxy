@@ -94,7 +94,11 @@ again:
 			readable.push_front(*it);
 	}
 
+	if (readable.size() == 0)
+		throw IOSelectTimeout(time);
+
 	return readable;
+
 }
 
 /**
@@ -132,6 +136,9 @@ again:
 		if (FD_ISSET(*it, &set))
 			writable.push_front(*it);
 	}
+
+	if (writable.size() == 0)
+		throw new IOSelectTimeout(time);
 
 	return writable;
 }

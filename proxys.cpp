@@ -31,13 +31,13 @@ int main(int argc, char *argv[]) {
 
 	IOSocket *sock = NULL;
 	io_buf buffer;
-	int	p = 12345;
-	int pn = htonl(p);
+	string s = "Content-Type: application/type";
+	s += "\n";
 
-	buffer.content = (char *) &pn;
-	buffer.length = sizeof(p);
+	buffer.content = (char *) s.c_str();
+	buffer.length = s.size();
 
-	cout << "Length: " << sizeof(p) << endl;
+	cout << "Length: " << buffer.length << endl;
 
 	try {
 		sock = new IOSocket("127.0.0.1", 12345, 0);

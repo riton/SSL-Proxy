@@ -50,11 +50,12 @@ struct io_stat {
 class IOSocket {
 
 	private:
-		int			sock;
-		int			port;
-		char		*host;
-		bool		connected;
-		bool		client;
+		int				sock;
+		int				port;
+		char			*host;
+		bool			connected;
+		bool			client;
+		unsigned int	timeouted;
 
 		/* Select */
 		IOSelect	*select;
@@ -81,7 +82,9 @@ class IOSocket {
 
 		/* I/O */
 		void write(const struct io_buf &buffer);
-		void read(struct io_buf &buffer);
+		void write(const struct io_buf &buffer, const struct timeval *timeout);
+		void read(struct io_buf *buffer);
+		void read(struct io_buf *buffer, const struct timeval *timeout);
 	
 };
 

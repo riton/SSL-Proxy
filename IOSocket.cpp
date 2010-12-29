@@ -8,6 +8,9 @@ IOSocket::IOSocket(const char *host, const int port, const int listen) {
 	/* Are we a client or a server ? */
 	client = listen ? false : true;
 
+	/* No timeout */
+	timeouted = 0;
+
 	sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0)
 		throw("Socket creation error");
@@ -24,6 +27,14 @@ IOSocket::IOSocket(const char *host, const int port, const int listen) {
 
 	/* Reset stats */
 	memset(&stats, 0x0, sizeof(stats));
+}
+
+/**
+ * @desc Getter for Socket file descriptor
+ * @return int socket
+ */
+int IOSocket::getFd(void) {
+	return sock;
 }
 
 void IOSocket::bindSocket(const int &port) {
@@ -73,7 +84,6 @@ again:
 	stats.startTime = time(NULL);
 }
 
-
 void IOSocket::write(const struct io_buf &buffer) {
 
 	int		written = 0;
@@ -97,15 +107,51 @@ void IOSocket::write(const struct io_buf &buffer) {
 			to_write = buffer.length - offset;
 
 	} while (offset != buffer.length);
-
-	cout << "Offet:" << offset << endl;
-
 }
 
-/**
- * @desc Getter for Socket file descriptor
- * @return int socket
- */
-int IOSocket::getFd(void) {
-	return sock;
+void IOSocket::write(const struct io_buf &buffer, const struct timeval *timeout) {
+
+	list<int>	writable;
+
+	try {
+		writable = select->can_write(timeout);
+	} catch(IOSelectTimeout &t) {
+		if (timeouted++)
+			throw ios_base::failure("Write operation timeouted");
+	}
+
+	return write(buffer);
 }
+
+void IOSocket::read(struct io_buf *buffer) {
+
+	int		has_read = 0;
+
+	do {
+		has_read = ::read(sock, (char *) buffer->content, IOSOCKET_NET_BUF_SIZE);
+		if (has_read < 0) {
+			if (errno != EINTR)
+				throw("Read error");
+			continue;
+		}
+		break;
+	} while (1);
+
+	buffer->length = has_read;
+}
+
+void IOSocket::read(struct io_buf *buffer, const struct timeval *timeout) {
+
+	list<int>	readable;
+
+	try {
+		readable = select->can_read(timeout);
+	} catch(IOSelectTimeout &t) {
+		if (timeouted++)
+			throw ios_base::failure("Read operation timeouted");
+	}
+
+	return read(buffer);
+}
+
+
