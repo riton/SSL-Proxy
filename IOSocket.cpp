@@ -1,32 +1,61 @@
 #include "IOSocket.h"
 
+/**
+ * @desc Private constructor for clients socket
+ * This constructor is used by the accept() method
+ * to create a new client socket
+ * @param const int socket Client socket file descriptor
+ * @return IOSocket *
+ */
+IOSocket::IOSocket(const int &socket) {
 
-IOSocket::IOSocket(const char *host, const int port, const int listen) {
-
-	int	fd[2] = {0, 0};
-
-	/* Are we a client or a server ? */
-	client = listen ? false : true;
-
-	/* No timeout */
-	timeouted = 0;
-
-	sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (sock < 0)
-		throw("Socket creation error");
-
-	if (client)
-		connectToServer(host, port);
-	else
-		bindSocket(port);
-
-	/* Setup select */
-	fd[0] = (int) sock;
-	fd[1] = -1;
-	select = new IOSelect(fd);
+	socket_t = IOSOCKET_CONNECT_T;
+	sock = socket;
 
 	/* Reset stats */
 	memset(&stats, 0x0, sizeof(stats));
+
+	/* Set start time */
+	stats.client.startTime = time(NULL);
+}
+
+IOSocket *IOSocket::accept() {
+
+	int 				c_sock = 0;
+	struct sockaddr		addr;
+	socklen_t			addrlen = sizeof(addr);
+
+again:
+	c_sock = ::accept(sock, &addr, &addrlen);
+	if (c_sock < 0) {
+		if (errno != EINTR)
+			throw("accept error");
+		goto again;
+	}
+
+	return new IOSocket(c_sock);
+}
+
+IOSocket::IOSocket(const socket_type sock_t, const char *host, const int port) {
+
+	socket_t = sock_t;
+	this->port = port;
+	memset(&stats, 0x0, sizeof(stats));
+
+	sock = ::socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0)
+		throw("Socket creation error");
+
+	switch (socket_t) {
+		case IOSOCKET_CONNECT_T:
+			connectToServer(host, port);
+			break;
+		case IOSOCKET_LISTEN_T:
+			bindSocket(port);
+			break;
+		default:
+			throw("Invalid socket type");
+	}
 }
 
 /**
@@ -39,7 +68,7 @@ int IOSocket::getFd(void) {
 
 void IOSocket::bindSocket(const int &port) {
 
-	struct sockaddr_in 	sin = {0};
+	struct sockaddr_in 	sin;
 	int					rc = 0;
 	int					reuse_addr = 1;
 
@@ -47,15 +76,20 @@ void IOSocket::bindSocket(const int &port) {
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
 
-	rc = bind((int) sock, (struct sockaddr *)&sin, sizeof(sin));
+	rc = bind(sock, (struct sockaddr *)&sin, sizeof(sin));
 	if (rc < 0)
-		throw("Unable to bind local sock");
+		throw("bind error");
 
 	/* Set reusable */
-	rc = setsockopt((int) sock, SOL_SOCKET, SO_REUSEADDR, (const void *)&reuse_addr, sizeof(reuse_addr));
+	rc = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const void *)&reuse_addr, sizeof(reuse_addr));
 	if (rc < 0)
-		throw("Unable to set REUSEADDR");
+		throw("setsockopt error");
 
+	rc = listen(sock, 5);
+	if (rc < 0)
+		throw("listen error");
+
+	connected = true;
 }
 
 void IOSocket::connectToServer(const char *hostname, const int &port) {
@@ -81,7 +115,8 @@ again:
 	}
 
 	/* Store start Time */
-	stats.startTime = time(NULL);
+	stats.client.startTime = time(NULL);
+	connected = true;
 }
 
 void IOSocket::write(const struct io_buf &buffer) {
@@ -102,6 +137,7 @@ void IOSocket::write(const struct io_buf &buffer) {
 		}
 
 		offset += written;
+		stats.client.bytesSent += written; /* Update stats */
 
 		if (buffer.length - offset < IOSOCKET_NET_BUF_SIZE)
 			to_write = buffer.length - offset;
@@ -109,17 +145,9 @@ void IOSocket::write(const struct io_buf &buffer) {
 	} while (offset != buffer.length);
 }
 
-void IOSocket::write(const struct io_buf &buffer, const struct timeval *timeout) {
+void IOSocket::write(const char *msg) {
 
-	list<int>	writable;
-
-	try {
-		writable = select->can_write(timeout);
-	} catch(IOSelectTimeout &t) {
-		if (timeouted++)
-			throw ios_base::failure("Write operation timeouted");
-	}
-
+	struct io_buf buffer = {(char *) msg, ::strlen(msg)};
 	return write(buffer);
 }
 
@@ -138,20 +166,13 @@ void IOSocket::read(struct io_buf *buffer) {
 	} while (1);
 
 	buffer->length = has_read;
+	stats.client.bytesReceived += has_read; /* Update stats */
 }
 
-void IOSocket::read(struct io_buf *buffer, const struct timeval *timeout) {
-
-	list<int>	readable;
-
-	try {
-		readable = select->can_read(timeout);
-	} catch(IOSelectTimeout &t) {
-		if (timeouted++)
-			throw ios_base::failure("Read operation timeouted");
+void IOSocket::close() {
+	if (connected) {
+		::shutdown(SHUT_RDWR, sock);
+		::close(sock);
 	}
-
-	return read(buffer);
 }
-
 
