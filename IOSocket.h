@@ -16,6 +16,7 @@
 #include <list>
 #include <sstream>
 #include "IOSelect.h"
+#include<stdio.h>
 
 using namespace std;
 
@@ -45,6 +46,10 @@ struct io_buf {
 	io_buf() {
 		content = new char[IOSOCKET_NET_BUF_SIZE];
 		length = 0;
+	}
+
+	~io_buf() {
+		delete content;
 	}
 };
 

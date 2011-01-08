@@ -147,7 +147,9 @@ void IOSocket::write(const struct io_buf &buffer) {
 
 void IOSocket::write(const char *msg) {
 
-	struct io_buf buffer = {(char *) msg, ::strlen(msg)};
+	struct io_buf buffer;
+	strncpy(buffer.content, msg, ::strlen(msg));
+	buffer.length = ::strlen(msg);
 	return write(buffer);
 }
 
