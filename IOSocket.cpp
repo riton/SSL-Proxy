@@ -20,6 +20,10 @@ IOSocket::IOSocket(const int &socket) {
 	stats.client.startTime = time(NULL);
 }
 
+/**
+ * @desc Accept a new client connection from master socket
+ * @return IOSocket * Client connection
+ */
 IOSocket *IOSocket::accept() {
 
 	int 				c_sock = 0;
@@ -34,6 +38,7 @@ again:
 		goto again;
 	}
 
+	stats.server.accepted++;
 	return new IOSocket(c_sock);
 }
 
