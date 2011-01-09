@@ -11,6 +11,7 @@ IOSocket::IOSocket(const int &socket) {
 
 	socket_t = IOSOCKET_CONNECT_T;
 	sock = socket;
+	connected = true;
 
 	/* Reset stats */
 	memset(&stats, 0x0, sizeof(stats));
@@ -175,6 +176,7 @@ void IOSocket::close() {
 	if (connected) {
 		::shutdown(SHUT_RDWR, sock);
 		::close(sock);
+		stats.client.endTime = time(NULL); /* Set endTime */
 	}
 }
 

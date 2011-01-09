@@ -21,11 +21,21 @@ int main(int argc, char *argv[]) {
 		client = msock->accept();
 		client->write("test\n");
 		client->read(&buffer);
+		client->close();
 	
 		cout << "Read from socket:: " << buffer.content << endl;
 
 	} catch (const char *e) {
 		cerr << e << ": " << strerror(errno) << endl;
+		exit(EXIT_FAILURE);
+	} 
+
+	{
+		io_stat *stat = &(client->stats);
+		cout << "Socket_Stats:" << endl;
+		cout << "\tSocket_In: " << stat->client.bytesReceived << endl;
+		cout << "\tSocket_out: " << stat->client.bytesSent << endl;
+		cout << "\tDuration: " << stat->client.endTime - stat->client.startTime << endl;
 	}
 
 
