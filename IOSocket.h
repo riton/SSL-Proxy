@@ -93,7 +93,7 @@ class IOSocket {
 	/**
 	 * Attributes
 	 */
-	private:
+	protected:
 		int					sock;
 		int					port;
 		char				*host;
@@ -111,24 +111,25 @@ class IOSocket {
 	/**
 	 * Methods
 	 */
-	private:
-		void connectToServer(const char *host, const int &port);
-		void bindSocket(const int &port);
+	protected:
+		virtual void connectToServer(const char *host, const int &port);
+		virtual void bindSocket(const int &port);
 		IOSocket(const int &socket);
 
 	public:
 		IOSocket(const socket_type sock_t, const char *host, const int port);
 		IOSocket *accept();
+		virtual ~IOSocket();
 
 		/* Getter */
 		int getFd(void);
 
 		/* I/O */
-		void write(const struct io_buf &buffer);
-		void write(const char *msg);
-		void read(struct io_buf *buffer);
+		virtual void write(const struct io_buf &buffer);
+		virtual void write(const char *msg);
+		virtual void read(struct io_buf *buffer);
 
-		void close();
+		virtual void close();
 };
 
 #endif

@@ -38,7 +38,9 @@ again:
 		goto again;
 	}
 
-	stats.server.accepted++;
+	if (stats.server.accepted++ == 0)
+		connected = true; // Used to close connection when leaving
+
 	return new IOSocket(c_sock);
 }
 
@@ -181,7 +183,12 @@ void IOSocket::close() {
 	if (connected) {
 		::shutdown(SHUT_RDWR, sock);
 		::close(sock);
-		stats.client.endTime = time(NULL); /* Set endTime */
+
+		if (socket_t == IOSOCKET_CONNECT_T)
+			stats.client.endTime = time(NULL); /* Set endTime */
 	}
 }
 
+IOSocket::~IOSocket() {
+	this->close();
+}
