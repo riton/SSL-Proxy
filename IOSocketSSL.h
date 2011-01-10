@@ -60,6 +60,11 @@ using namespace std;
 #define __IOSOCKETSSL_ERR_BUF_LEN	2048
 
 /**
+ * Max Cert/Key file name length
+ */
+#define __IOSOCKETSSL_MAX_FILENAME_LEN	1024
+
+/**
  * @desc This class aims to provide easy access to SSL socket function
  * and to provide a socket factory for server functionnalities, with SSL layer
  */
@@ -75,15 +80,20 @@ class IOSocketSSL: public IOSocket {
 		SSL			*ssl;
 
 		bool		init_ssl;
+		bool		handshake_done;
 		char		*ssl_err;
+		char		cert_file[__IOSOCKETSSL_MAX_FILENAME_LEN];
+		char		key_file[__IOSOCKETSSL_MAX_FILENAME_LEN];
 
 	/**
 	 * Methods
 	 */
 	private:
-		IOSocketSSL(const int &socket);
-		void initSSL(const char *keyfile, const char *certfile);
+		IOSocketSSL(const SSL_CTX *ctxs, const int &fd); 
+		void init_internals();
 		const char *new_SSL_error(const char *e);
+		void initSSL();
+		void acceptSSL();
 
 	public:
 		IOSocketSSL(const socket_type sock_t, const char *host, const int port, const char *keyfile, const char *certfile);

@@ -2,28 +2,32 @@
 #include <iostream>
 #include <string>
 #include <sstream>
-#include "IOSocket.h"
 #include <string.h>
+#include "IOSocketSSL.h"
 
 using namespace std;
 
 int main(int argc, char *argv[]) {
 
-	IOSocket 		*msock;
-	IOSocket 		*client = NULL;
-	struct io_buf	buffer;
+	IOSocketSSL 		*msock;
+	IOSocketSSL 		*client = NULL;
+	struct io_buf		buffer;
 		
 
 	try {
 	
-		msock = new IOSocket(IOSOCKET_LISTEN_T, NULL, 12345);
-
+		msock = new IOSocketSSL(IOSOCKET_LISTEN_T,
+								NULL,
+								12345,
+								"/tmp/plop.key",
+								"/tmp/plop.crt");
+/*
 		client = msock->accept();
 		client->write("test\n");
 		client->read(&buffer);
 		client->close();
-	
 		cout << "Read from socket:: " << buffer.content << endl;
+*/	
 
 	} catch (const char *e) {
 		cerr << e << ": " << strerror(errno) << endl;

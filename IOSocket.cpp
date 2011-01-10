@@ -9,6 +9,8 @@
  */
 IOSocket::IOSocket(const int &socket) {
 
+	TRACE_CALL();
+
 	socket_t = IOSOCKET_CONNECT_T;
 	sock = socket;
 	connected = true;
@@ -30,6 +32,8 @@ IOSocket *IOSocket::accept() {
 	struct sockaddr		addr;
 	socklen_t			addrlen = sizeof(addr);
 
+	TRACE_CALL();
+
 again:
 	c_sock = ::accept(sock, &addr, &addrlen);
 	if (c_sock < 0) {
@@ -45,6 +49,8 @@ again:
 }
 
 IOSocket::IOSocket(const socket_type sock_t, const char *host, const int port) {
+
+	TRACE_CALL();
 
 	socket_t = sock_t;
 	this->port = port;
@@ -71,6 +77,7 @@ IOSocket::IOSocket(const socket_type sock_t, const char *host, const int port) {
  * @return int socket
  */
 int IOSocket::getFd(void) {
+	TRACE_CALL();
 	return sock;
 }
 
@@ -79,6 +86,8 @@ void IOSocket::bindSocket(const int &port) {
 	struct sockaddr_in 	sin;
 	int					rc = 0;
 	int					reuse_addr = 1;
+
+	TRACE_CALL();
 
 	sin.sin_addr.s_addr = htonl(INADDR_ANY);
 	sin.sin_family = AF_INET;
@@ -106,6 +115,8 @@ void IOSocket::connectToServer(const char *hostname, const int &port) {
 	struct hostent		*hp;
 	int					rc = 0;
 
+	TRACE_CALL();
+
 	hp = gethostbyname(hostname);
 	if (hp == NULL) 
 		throw("Hostname resolution failed");
@@ -132,6 +143,8 @@ void IOSocket::write(const struct io_buf &buffer) {
 	int		written = 0;
 	size_t	offset = 0;
 	size_t	to_write = buffer.length;
+	
+	TRACE_CALL();
 
 	if (to_write > IOSOCKET_NET_BUF_SIZE)
 		to_write = IOSOCKET_NET_BUF_SIZE;
@@ -156,6 +169,7 @@ void IOSocket::write(const struct io_buf &buffer) {
 void IOSocket::write(const char *msg) {
 
 	struct io_buf buffer;
+	TRACE_CALL();
 	strncpy(buffer.content, msg, ::strlen(msg));
 	buffer.length = ::strlen(msg);
 	return write(buffer);
@@ -164,6 +178,8 @@ void IOSocket::write(const char *msg) {
 void IOSocket::read(struct io_buf *buffer) {
 
 	int		has_read = 0;
+	
+	TRACE_CALL();
 
 	do {
 		has_read = ::read(sock, (char *) buffer->content, IOSOCKET_NET_BUF_SIZE);
@@ -180,6 +196,7 @@ void IOSocket::read(struct io_buf *buffer) {
 }
 
 void IOSocket::close() {
+	TRACE_CALL();
 	if (connected) {
 		::shutdown(SHUT_RDWR, sock);
 		::close(sock);
@@ -190,5 +207,6 @@ void IOSocket::close() {
 }
 
 IOSocket::~IOSocket() {
+	TRACE_CALL();
 	this->close();
 }

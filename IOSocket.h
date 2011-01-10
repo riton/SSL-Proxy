@@ -20,6 +20,8 @@
 
 using namespace std;
 
+#define TRACE_CALL() do{cerr << __FILE__ << "::" << __FUNCTION__ << " called" << endl;}while(0)
+
 /**
  * Buffer size for network I/O
  */
