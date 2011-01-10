@@ -1,13 +1,13 @@
 .PHONY: all
 
 CFLAGS=-Wall
-LDFLAGS=
+LDFLAGS=-lssl
 DEBUG=-O0 -ggdb
 CC=g++
 
 all: proxys
 
-OBJ=IOSelect.o IOSocket.o
+OBJ=IOSelect.o IOSocket.o IOSocketSSL.o
 
 proxys: proxys.o $(OBJ)
 	$(CC) $(LDFLAGS) $^ -o $@
