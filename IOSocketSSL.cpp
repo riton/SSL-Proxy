@@ -1,6 +1,7 @@
 #include "IOSocketSSL.h"
 
-#define SSL_S_ERROR() ERR_error_string(ERR_peek_last_error(), NULL)
+#define SSL_S_ERROR() ERR_error_string(ERR_get_error(), NULL)
+//#define SSL_S_ERROR() ERR_error_string(ERR_peek_last_error(), NULL)
 
 /**
  * @desc Return a well formated error string with SSL last error
@@ -33,7 +34,7 @@ IOSocketSSL::IOSocketSSL(	const socket_type sock_t,
 	try {
 		initSSL(keyfile, certfile);
 	} catch (const char *e) {
-		cerr << "SSL_Initialization failed: " << e << endl;
+		cerr << "SSL Initialization failed: " << e << endl;
 	}
 }
 
