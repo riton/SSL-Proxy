@@ -42,35 +42,51 @@ IOSocketSSL::IOSocketSSL(	const socket_type sock_t,
 							const char *keyfile,
 							const char *certfile) : IOSocket(sock_t, host, port)
 {
+	TRACE_CALL();
+
+	setKeyFile(keyfile);
+	setCertFile(certfile);
+
+	init_internals();
+}
+
+void IOSocketSSL::setKeyFile(const char *k) {
+
 	size_t	len = 0;
 
 	TRACE_CALL();
 
 	len = sizeof(key_file);
-	strncpy(key_file, keyfile, len - 1);
+	strncpy(key_file, k, len - 1);
 	key_file[len-1] = '\0';
+}
+
+void IOSocketSSL::setCertFile(const char *k) {
+
+	size_t	len = 0;
+
+	TRACE_CALL();
 
 	len = sizeof(cert_file);
-	strncpy(cert_file, certfile, len - 1);
+	strncpy(cert_file, k, len - 1);
 	cert_file[len-1] = '\0';
-
-	init_internals();
 }
 
 /**
  * @desc Private constructor that uses IOSocket private constructor
  * @throw Const char *e
- * @param ctxs SSL context of master socket
  * @param fd File descriptor of previously accepted socket
+ * @param keyfile File to read key from
+ * @param certfile File to read cert from
  */
-IOSocketSSL::IOSocketSSL(	const SSL_CTX *ctxs,
-							const int &fd) : IOSocket(fd) 
+IOSocketSSL::IOSocketSSL(	const int &fd,
+							const char *keyfile,
+							const char *certfile) : IOSocket(fd) 
 {
 	TRACE_CALL();
-	/* We must allocate ourself with malloc()
-	 * for we don't use OpenSSL internals */
-	ctx = (SSL_CTX *) malloc(sizeof(SSL_CTX));
-	memcpy(ctx, ctxs, sizeof(SSL_CTX));
+
+	setKeyFile(keyfile);
+	setCertFile(certfile);
 	init_internals();
 }
 
@@ -81,10 +97,21 @@ IOSocketSSL::~IOSocketSSL() {
 
 	TRACE_CALL();
 
+	if (ssl) {
+		SSL_free(ssl);
+		ssl = NULL;
+	}
+
+	if (ctx) {
+		SSL_CTX_free(ctx);
+		ctx = NULL;
+	}
+
 	/* Cleanup ciphers, algo */
 	EVP_cleanup();
 
 	delete ssl_err;
+	ssl_err = NULL;
 }
 
 /**
@@ -102,10 +129,12 @@ void IOSocketSSL::initSSL() {
 
 	switch (socket_t) {
 		case IOSOCKET_LISTEN_T:
+			cerr << "Server method" << endl;
 			ctx = SSL_CTX_new(SSLv3_server_method());
 			break;
 
 		case IOSOCKET_CONNECT_T:
+			cerr << "Client method" << endl;
 			ctx = SSL_CTX_new(SSLv3_client_method());
 			break;
 
@@ -161,7 +190,7 @@ again:
 
 	/* Create a new IOSocketSSL to handle client handshake */
 	try {
-		client = new IOSocketSSL(ctx, c_sock);
+		client = new IOSocketSSL(c_sock, key_file, cert_file);
 	} catch (const char *e) {
 		throw(new_SSL_error("creating client SSL socket"));
 	}
@@ -170,8 +199,12 @@ again:
 	try {
 		client->acceptSSL();
 	} catch (const char *e) {
-		throw(new_SSL_error("acceptSSL on client socket"));
+		stringstream ss;
+		ss << new_SSL_error("acceptSSL on client socket") << "(" << e << ")";
+		throw(ss.str().c_str());
 	}
+
+	cout << "Algorithme utilise : " <<  SSL_get_cipher(ssl) << endl;
 
 	return client;
 }

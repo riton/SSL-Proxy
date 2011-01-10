@@ -7,11 +7,18 @@
 
 using namespace std;
 
+#define PATH_TO_SSL "/home/riton/Sources/C++/proxy_ssl/client_server_ssl_c/cert"
+#define KEY_FILE PATH_TO_SSL "/ftptcp.key"
+#define CERT_FILE PATH_TO_SSL "/ftptcp.crt"
+
 int main(int argc, char *argv[]) {
 
 	IOSocketSSL 		*msock;
 	IOSocketSSL 		*client = NULL;
 	struct io_buf		buffer;
+
+	cout << "Using key file: " << KEY_FILE << endl;
+	cout << "Using cert file: " << CERT_FILE << endl;
 		
 
 	try {
@@ -19,15 +26,14 @@ int main(int argc, char *argv[]) {
 		msock = new IOSocketSSL(IOSOCKET_LISTEN_T,
 								NULL,
 								12345,
-								"/tmp/plop.key",
-								"/tmp/plop.crt");
-/*
+								KEY_FILE,
+								CERT_FILE);
+
 		client = msock->accept();
-		client->write("test\n");
-		client->read(&buffer);
+/*		client->write("test\n");
+		client->read(&buffer);*/
 		client->close();
 		cout << "Read from socket:: " << buffer.content << endl;
-*/	
 
 	} catch (const char *e) {
 		cerr << e << ": " << strerror(errno) << endl;

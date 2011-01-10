@@ -89,7 +89,7 @@ class IOSocketSSL: public IOSocket {
 	 * Methods
 	 */
 	private:
-		IOSocketSSL(const SSL_CTX *ctxs, const int &fd); 
+		IOSocketSSL(const int &fd, const char *k, const char *c); 
 		void init_internals();
 		const char *new_SSL_error(const char *e);
 		void initSSL();
@@ -99,6 +99,8 @@ class IOSocketSSL: public IOSocket {
 		IOSocketSSL(const socket_type sock_t, const char *host, const int port, const char *keyfile, const char *certfile);
 		IOSocketSSL *accept();
 		~IOSocketSSL();
+		void setKeyFile(const char *k);
+		void setCertFile(const char *k);
 
 		/* Getter */
 		SSL *getSSL(void);
