@@ -17,7 +17,7 @@ const char *IOSocketSSL::new_SSL_error(const char *msg) {
 	return ssl_err;
 }
 
-void IOSocketSSL::init_internals() {
+void IOSocketSSL::init_internals(const bool force_server_method = false) {
 
 	TRACE_CALL();
 
@@ -25,7 +25,7 @@ void IOSocketSSL::init_internals() {
 	handshake_done = false;
 
 	//@throw char *e 
-	initSSL();
+	initSSL(force_server_method);
 }
 
 /**
@@ -87,7 +87,7 @@ IOSocketSSL::IOSocketSSL(	const int &fd,
 
 	setKeyFile(keyfile);
 	setCertFile(certfile);
-	init_internals();
+	init_internals(true);
 }
 
 /**
@@ -114,12 +114,20 @@ IOSocketSSL::~IOSocketSSL() {
 	ssl_err = NULL;
 }
 
+SSL *IOSocketSSL::getSSL() {
+	return ssl;
+}
+
+const char *IOSocketSSL::getCipher() {
+	return SSL_get_cipher(ssl);
+}
+
 /**
  * @desc Initialize OpenSSL lib
  * @throw Char *
  */
-void IOSocketSSL::initSSL() {
-	
+void IOSocketSSL::initSSL(const bool force_server_method = false) {
+
 	TRACE_CALL();
 
 	SSL_load_error_strings();
@@ -129,13 +137,14 @@ void IOSocketSSL::initSSL() {
 
 	switch (socket_t) {
 		case IOSOCKET_LISTEN_T:
-			cerr << "Server method" << endl;
 			ctx = SSL_CTX_new(SSLv3_server_method());
 			break;
 
 		case IOSOCKET_CONNECT_T:
-			cerr << "Client method" << endl;
-			ctx = SSL_CTX_new(SSLv3_client_method());
+			if (force_server_method)
+				ctx = SSL_CTX_new(SSLv3_server_method());
+			else
+				ctx = SSL_CTX_new(SSLv3_client_method());
 			break;
 
 		default:
@@ -160,6 +169,9 @@ void IOSocketSSL::initSSL() {
 
 	if (SSL_CTX_check_private_key(ctx) != 1)
 		throw(new_SSL_error("verifying private key"));
+
+	/* Don't bother with renego */
+	SSL_CTX_set_mode(ctx, SSL_MODE_AUTO_RETRY);
 
 	init_ssl = true;
 }
@@ -204,7 +216,7 @@ again:
 		throw(ss.str().c_str());
 	}
 
-	cout << "Algorithme utilise : " <<  SSL_get_cipher(ssl) << endl;
+	cout << "Algorithme utilise : " <<  client->getCipher() << endl;
 
 	return client;
 }
@@ -228,9 +240,194 @@ void IOSocketSSL::acceptSSL() {
 	handshake_done = true;
 }
 
-void IOSocketSSL::write(const struct io_buf &buffer) {};
-void IOSocketSSL::write(const char *msg) {};
-void IOSocketSSL::read(struct io_buf *buffer) {};
+size_t IOSocketSSL::writeSSL(const struct io_buf &buffer) {
 
-void IOSocketSSL::close() {};
+	size_t	written = 0;
+	int		retry = 0;
+	bool	eintr = false; // true if eintr was catched
+
+	TRACE_CALL();
+
+	if (!handshake_done)
+		throw("SSL_accept()/SSL_connect() not called");
+
+try_again:
+	written = SSL_write(ssl, ((char *) buffer.content), buffer.length);
+	
+	
+	if (written < 0) {
+		try {
+			eintr = throwSSLError(written);
+		} catch (const char *e) {
+			stringstream ss;
+			ss << new_SSL_error("SSL_write error") << "(" << e << ")";
+			throw(ss.str().c_str());
+		}
+
+		if (eintr) {
+			if (retry++ < IOSOCKET_MAX_RETRY)
+				goto try_again;
+			else {
+				stringstream ss;
+				ss << new_SSL_error("SSL_write error") << "(Too many attempts)";
+				throw(ss.str().c_str());
+			}
+		}
+	}
+
+	return written;
+}
+
+size_t IOSocketSSL::readSSL(struct io_buf *buffer) {
+
+	size_t	written = 0;
+	int		retry = 0;
+	bool	eintr = false; // true if eintr was catched
+
+	TRACE_CALL();
+
+	if (!handshake_done)
+		throw("SSL_accept()/SSL_connect() not called");
+
+try_again:
+
+	written = SSL_read(ssl, (char *) buffer->content, buffer->length);
+
+	if (written < 0) {
+		try {
+			eintr = throwSSLError(written);
+		} catch (const char *e) {
+			stringstream ss;
+			ss << new_SSL_error("SSL_read error") << "(" << e << ")";
+			throw(ss.str().c_str());
+		}
+
+		if (eintr) {
+			if (retry++ < IOSOCKET_MAX_RETRY)
+				goto try_again;
+			else {
+				stringstream ss;
+				ss << new_SSL_error("SSL_read error") << "(Too many attempts)";
+				throw(ss.str().c_str());
+			}
+		}
+	}
+
+	return written;
+}
+
+size_t IOSocketSSL::write(const struct io_buf &buffer) {
+
+	size_t			written = 0;
+	size_t			offset = 0;
+	size_t			to_write = buffer.length;
+	struct io_buf 	buf;
+	
+	TRACE_CALL();
+
+	if (to_write > IOSOCKET_NET_BUF_SIZE)
+		to_write = IOSOCKET_NET_BUF_SIZE;
+
+	do {
+
+		::memcpy(buf.content, buffer.content + offset, to_write);
+		buf.length = to_write;
+
+		try {
+			written = writeSSL(buf);
+		} catch (const char *e) {
+			stringstream ss;
+			ss << new_SSL_error("writeSSL error") << "(" << e << ")";
+			throw(ss.str().c_str());
+		}
+
+		offset += written;
+		stats.client.bytesSent += written; /* Update stats */
+
+		if (buffer.length - offset < IOSOCKET_NET_BUF_SIZE)
+			to_write = buffer.length - offset;
+
+	} while (offset != buffer.length);
+
+	return offset;
+}
+
+size_t IOSocketSSL::read(struct io_buf *buffer) {
+
+	size_t			has_read = 0;
+	
+	TRACE_CALL();
+
+	try {
+		has_read = readSSL(buffer);
+	} catch (const char *e) {
+		stringstream ss;
+		ss << new_SSL_error("readSSL error") << "(" << e << ")";
+		throw(ss.str().c_str());
+	}
+
+	stats.client.bytesReceived += has_read; /* Update stats */
+
+	return has_read;
+}
+
+/**
+ * @desc Throw the correct SSL error message
+ * @throw char *
+ * @return True if EINTR was catched and syscall should be retried
+ */
+bool IOSocketSSL::throwSSLError(const int error) {
+
+	int err = error;
+
+	TRACE_CALL();
+
+	switch (SSL_get_error(ssl, err)) {
+		case SSL_ERROR_WANT_READ:
+		case SSL_ERROR_WANT_WRITE:
+			throw(new_SSL_error("SSL_CTX_set_mode() should have fixed this... STRANGE !"));
+			break;
+
+		case SSL_ERROR_ZERO_RETURN:
+			/* Connection closed */
+			throw(new_SSL_error("Connection closed by remote host"));
+			break;
+
+		case SSL_ERROR_SYSCALL:
+			if (err == -1) {
+				if (errno == EINTR)
+					return true;
+			}
+			break;
+
+		case SSL_ERROR_SSL:
+			throw(new_SSL_error("Internal library error"));
+			break;
+
+		default:
+			throw(new_SSL_error("Unknown error"));
+			break;
+	}
+	return false;
+}
+
+//void IOSocketSSL::read(struct io_buf *buffer) {};
+
+void IOSocketSSL::close() {
+
+	TRACE_CALL();
+
+	// Close / shutdown and set endTime
+	IOSocket::close();
+
+	if (ssl) {
+		SSL_free(ssl);
+		ssl = NULL;
+	}
+
+	if (ctx) {
+		SSL_CTX_free(ctx);
+		ctx = NULL;
+	}
+}
 

@@ -13,13 +13,12 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
 
-	IOSocketSSL 		*msock;
-	IOSocketSSL 		*client = NULL;
+	IOSocket 		*msock;
+	IOSocket 		*client = NULL;
 	struct io_buf		buffer;
 
 	cout << "Using key file: " << KEY_FILE << endl;
 	cout << "Using cert file: " << CERT_FILE << endl;
-		
 
 	try {
 	
@@ -30,13 +29,14 @@ int main(int argc, char *argv[]) {
 								CERT_FILE);
 
 		client = msock->accept();
-/*		client->write("test\n");
-		client->read(&buffer);*/
+		cout << "After accept" << endl;
+		//client->write("test\n");
+		client->read(&buffer);
 		client->close();
 		cout << "Read from socket:: " << buffer.content << endl;
 
 	} catch (const char *e) {
-		cerr << e << ": " << strerror(errno) << endl;
+		cerr << "Global error:: " << e << ": " << strerror(errno) << endl;
 		exit(EXIT_FAILURE);
 	} 
 
@@ -45,8 +45,13 @@ int main(int argc, char *argv[]) {
 		cout << "Socket_Stats:" << endl;
 		cout << "\tSocket_In: " << stat->client.bytesReceived << endl;
 		cout << "\tSocket_out: " << stat->client.bytesSent << endl;
+		cout << "StartTime: " << stat->client.startTime << endl;
 		cout << "\tDuration: " << stat->client.endTime - stat->client.startTime << endl;
 	}
+
+	delete client;
+	msock->close();
+	delete msock;
 
 
 	return(EXIT_SUCCESS);

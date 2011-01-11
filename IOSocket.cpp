@@ -11,7 +11,7 @@ IOSocket::IOSocket(const int &socket) {
 
 	TRACE_CALL();
 
-	socket_t = IOSOCKET_CONNECT_T;
+	socket_t = IOSOCKET_CONNECT_T; // For stats
 	sock = socket;
 	connected = true;
 
@@ -138,9 +138,10 @@ again:
 	connected = true;
 }
 
-void IOSocket::write(const struct io_buf &buffer) {
+size_t IOSocket::write(const struct io_buf &buffer) {
 
 	int		written = 0;
+	int		retry = 0;
 	size_t	offset = 0;
 	size_t	to_write = buffer.length;
 	
@@ -154,7 +155,10 @@ void IOSocket::write(const struct io_buf &buffer) {
 		if (written < 0) {
 			if (errno != EINTR)
 				throw("Write error");
-			continue;
+			if (retry++ < IOSOCKET_MAX_RETRY)
+				continue;	
+			else 
+				goto leave;
 		}
 
 		offset += written;
@@ -164,20 +168,25 @@ void IOSocket::write(const struct io_buf &buffer) {
 			to_write = buffer.length - offset;
 
 	} while (offset != buffer.length);
+
+leave:
+	return offset;
 }
 
-void IOSocket::write(const char *msg) {
+size_t IOSocket::write(const char *msg) {
+
+	TRACE_CALL();
 
 	struct io_buf buffer;
-	TRACE_CALL();
 	strncpy(buffer.content, msg, ::strlen(msg));
 	buffer.length = ::strlen(msg);
 	return write(buffer);
 }
 
-void IOSocket::read(struct io_buf *buffer) {
+size_t IOSocket::read(struct io_buf *buffer) {
 
-	int		has_read = 0;
+	size_t	has_read = 0;
+	int		retry = 0;
 	
 	TRACE_CALL();
 
@@ -186,13 +195,18 @@ void IOSocket::read(struct io_buf *buffer) {
 		if (has_read < 0) {
 			if (errno != EINTR)
 				throw("Read error");
-			continue;
+			if (retry++ < IOSOCKET_MAX_RETRY)
+				continue;
+			else
+				goto leave;
 		}
 		break;
 	} while (1);
 
+leave:
 	buffer->length = has_read;
 	stats.client.bytesReceived += has_read; /* Update stats */
+	return has_read;
 }
 
 void IOSocket::close() {

@@ -90,25 +90,35 @@ class IOSocketSSL: public IOSocket {
 	 */
 	private:
 		IOSocketSSL(const int &fd, const char *k, const char *c); 
-		void init_internals();
+		void init_internals(const bool force_server_method);
 		const char *new_SSL_error(const char *e);
-		void initSSL();
+		void initSSL(const bool force_server_method);
 		void acceptSSL();
+		size_t writeSSL(const struct io_buf &buffer);
+		size_t readSSL(struct io_buf *buffer);
+
+		/**
+		 * @desc Throw the correct SSL error message
+		 * @throw char *
+		 * @return True if EINTR was catched and syscall should be retried
+		 */
+		bool throwSSLError(const int error);
+
 
 	public:
 		IOSocketSSL(const socket_type sock_t, const char *host, const int port, const char *keyfile, const char *certfile);
 		IOSocketSSL *accept();
-		~IOSocketSSL();
+		virtual ~IOSocketSSL();
 		void setKeyFile(const char *k);
 		void setCertFile(const char *k);
 
 		/* Getter */
 		SSL *getSSL(void);
+		const char *getCipher();
 
 		/* I/O */
-		virtual void write(const struct io_buf &buffer);
-		virtual void write(const char *msg);
-		virtual void read(struct io_buf *buffer);
+		virtual size_t write(const struct io_buf &buffer);
+		virtual size_t read(struct io_buf *buffer);
 
 		virtual void close();
 };

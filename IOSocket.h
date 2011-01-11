@@ -28,6 +28,11 @@ using namespace std;
 #define IOSOCKET_NET_BUF_SIZE	4096
 
 /**
+ * Max number of retry operation on EINTR
+ */
+#define IOSOCKET_MAX_RETRY		3
+
+/**
  * Socket type
  */
 enum socket_type {
@@ -46,11 +51,13 @@ struct io_buf {
 	size_t	length;
 
 	io_buf() {
+		TRACE_CALL();
 		content = new char[IOSOCKET_NET_BUF_SIZE];
 		length = 0;
 	}
 
 	~io_buf() {
+		TRACE_CALL();
 		delete content;
 	}
 };
@@ -120,16 +127,16 @@ class IOSocket {
 
 	public:
 		IOSocket(const socket_type sock_t, const char *host, const int port);
-		IOSocket *accept();
+		virtual IOSocket *accept();
 		virtual ~IOSocket();
 
 		/* Getter */
-		int getFd(void);
+		virtual int getFd(void);
 
 		/* I/O */
-		virtual void write(const struct io_buf &buffer);
-		virtual void write(const char *msg);
-		virtual void read(struct io_buf *buffer);
+		virtual size_t write(const struct io_buf &buffer);
+		virtual size_t write(const char *msg);
+		virtual size_t read(struct io_buf *buffer);
 
 		virtual void close();
 };
